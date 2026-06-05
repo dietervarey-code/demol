@@ -809,9 +809,6 @@ function renderTest() {
 }
 
 function renderElimination() {
-  if (ui.revealIndex === 0) {
-  playEliminationMusic();
-  }
   const item = ui.currentEliminationSequence[ui.revealIndex];
 
   if (!item) {
@@ -847,33 +844,32 @@ function renderElimination() {
     return;
   }
 
-  const finalFrame = item.typingFrames[item.typingFrames.length - 1];
   const style = getRevealScreenStyle(item.color);
 
   shell(`
     <div class="elimination-stage">
       <h1>Eliminatie</h1>
-      <p>Gilles typt de naam in...</p>
+      <p>Gilles typt de namen in...</p>
 
       <div class="name-screen" id="name-screen"></div>
       <div class="color-screen hidden" id="color-screen" style="background:${style.background}; border-color:${style.border};">
         ${style.label}
       </div>
 
-      <button data-action="start-reveal" class="primary">Toon scherm</button>
+      <p class="muted">De eliminatie loopt automatisch.</p>
     </div>
   `);
 
-  document.querySelector('[data-action="start-reveal"]').addEventListener("click", () => {
-    animateNameReveal(item, finalFrame);
-  });
+  setTimeout(() => {
+    animateNameReveal(item);
+  }, 500);
 }
 
 function animateNameReveal(item) {
   const nameScreen = document.querySelector("#name-screen");
   const colorScreen = document.querySelector("#color-screen");
-  const button = document.querySelector('[data-action="start-reveal"]');
-  button.disabled = true;
+
+  if (!nameScreen || !colorScreen) return;
 
   let index = 0;
 
@@ -888,10 +884,16 @@ function animateNameReveal(item) {
         colorScreen.classList.remove("hidden");
 
         setTimeout(() => {
+          if (item.color === "red") {
+            ui.currentEliminationSequence = [];
+            renderElimination();
+            return;
+          }
+
           ui.revealIndex += 1;
           renderElimination();
         }, 1300);
-      }, 500);
+      }, 450);
     }
   }, 180);
 }
