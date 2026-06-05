@@ -739,3 +739,159 @@ p {
     height: 460px;
   }
 }
+/* V10 - De Mol groen/cyaan-stijl en canvas-map */
+
+:root {
+  --mol-black: #020706;
+  --mol-dark: #06110f;
+  --mol-panel: rgba(2, 10, 8, 0.95);
+  --mol-panel-soft: rgba(4, 22, 17, 0.96);
+  --mol-green: #00ff66;
+  --mol-green-soft: #3cff9e;
+  --mol-cyan: #22ffe6;
+  --mol-white: #f4fff9;
+  --mol-muted: #8ab8aa;
+  --pixel-border: #22ffe6;
+}
+
+body {
+  background:
+    radial-gradient(circle at top, rgba(0, 255, 102, 0.12), transparent 28rem),
+    linear-gradient(135deg, #020706, #06110f, #000);
+  color: var(--mol-white);
+}
+
+button {
+  border-color: var(--mol-cyan);
+  background: linear-gradient(180deg, #08251e, #020706);
+  color: var(--mol-white);
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--mol-green);
+  background: linear-gradient(180deg, #0b3a2f, #020706);
+}
+
+button.primary {
+  background: linear-gradient(180deg, #00a84e, #03401f);
+  border-color: var(--mol-green);
+  color: #001b0d;
+}
+
+button.secondary {
+  background: linear-gradient(180deg, #08251e, #020706);
+  border-color: var(--mol-cyan);
+}
+
+button.selected {
+  outline: 3px solid var(--mol-green);
+  background: linear-gradient(180deg, #0a4f3e, #02120d);
+}
+
+input,
+textarea {
+  border-color: var(--mol-cyan);
+  background: #020706;
+  color: var(--mol-white);
+}
+
+input:focus,
+textarea:focus {
+  outline: 2px solid var(--mol-green);
+}
+
+.logo-wrap {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  margin-bottom: 1rem;
+}
+
+.logo-wrap img {
+  max-width: 220px;
+  max-height: 120px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(34, 255, 230, 0.35));
+}
+
+.logo-mark {
+  border-color: var(--mol-cyan);
+  color: var(--mol-white);
+  background: #020706;
+  text-shadow: 0 0 12px rgba(34, 255, 230, 0.75);
+}
+
+.subtitle,
+.location-label,
+.form-label {
+  color: var(--mol-cyan);
+}
+
+.topbar,
+.main-panel,
+.side-panel,
+.intro-card,
+.text-box {
+  border-color: var(--mol-cyan);
+  background: var(--mol-panel);
+}
+
+.topbar-info span,
+.candidate-row,
+.notebook-card,
+.dialogue-content,
+.dialogue-answer {
+  border-color: rgba(34, 255, 230, 0.35);
+  background: rgba(2, 18, 14, 0.92);
+}
+
+.candidate-row.is-player {
+  border-color: var(--mol-green);
+}
+
+.gilles-line {
+  border-left-color: var(--mol-green);
+  background: rgba(0, 255, 102, 0.09);
+}
+
+.danger {
+  color: var(--mol-green);
+}
+
+.canvas-map-shell {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(34, 255, 230, 0.08), transparent 24rem),
+    #020706;
+  border: 4px solid var(--mol-cyan);
+  border-radius: 18px;
+  padding: 1rem;
+  overflow: auto;
+  box-shadow: 0 0 38px rgba(34, 255, 230, 0.18);
+}
+
+.game-canvas {
+  width: min(100%, 896px);
+  max-width: 100%;
+  aspect-ratio: 896 / 576;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 4px solid #06110f;
+  background: #020706;
+  outline: none;
+}
+
+.game-canvas:focus {
+  box-shadow: 0 0 0 3px var(--mol-green);
+}
+
+.name-screen,
+.color-screen {
+  border-color: var(--mol-cyan);
+}
+
+.reunion-day {
+  border-left-color: var(--mol-green);
+}
