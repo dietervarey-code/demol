@@ -270,12 +270,12 @@ export const assignments = [
 ];
 
 export const seasonDays = [
-  { day: 1, cityId: "budapest", assignmentId: "budapest_brugcode", title: "Aankomst in Hongarije" },
-  { day: 2, cityId: "budapest", assignmentId: "budapest_thermen", title: "De tweede dag in Boedapest" },
-  { day: 3, cityId: "eger", assignmentId: "eger_wijnvaten", title: "Naar de wijnstad Eger" },
-  { day: 4, cityId: "eger", assignmentId: "eger_wijnvaten", title: "Onder de stad" },
-  { day: 5, cityId: "balaton", assignmentId: "balaton_kompas", title: "Aan het Balatonmeer" },
-  { day: 6, cityId: "pecs", assignmentId: "pecs_mozaiek", title: "Patronen in Pecs" },
-  { day: 7, cityId: "szeged", assignmentId: "szeged_markt", title: "De markt van Szeged" },
-  { day: 8, cityId: "szeged", assignmentId: "szeged_markt", title: "Finale in Szeged" }
+  { day: 1, cityId: "budapest", assignmentId: "budapest_bom_donau", title: "Aankomst in Hongarije" },
+  { day: 2, cityId: "budapest", assignmentId: "budapest_bom_donau", title: "De tweede dag in Boedapest" },
+  { day: 3, cityId: "eger", assignmentId: "eger_wijnveiling", title: "Naar de wijnstad Eger" },
+  { day: 4, cityId: "eger", assignmentId: "eger_wijnveiling", title: "Onder de stad" },
+  { day: 5, cityId: "balaton", assignmentId: "balaton_reddingsactie", title: "Aan het Balatonmeer" },
+  { day: 6, cityId: "pecs", assignmentId: "pecs_galerij_diefstal", title: "Patronen in Pécs" },
+  { day: 7, cityId: "szeged", assignmentId: "szeged_paprika_pakket", title: "De markt van Szeged" },
+  { day: 8, cityId: "szeged", assignmentId: "szeged_paprika_pakket", title: "Finale in Szeged" }
 ];
