@@ -1,4 +1,5 @@
 import "./styles/main.css";
+import { createMapSession } from "./game/mapEngine.js";
 
 import { cities } from "./data/cities.js";
 import { assignments, seasonDays } from "./data/assignments.js";
@@ -44,6 +45,35 @@ import {
 const app = document.querySelector("#app");
 
 let state = loadGame() || createEmptyGameState();
+const audio = {
+  theme: null,
+  elimination: null,
+  started: false
+};
+
+function initAudio() {
+  if (audio.started) return;
+
+  audio.theme = new Audio("/assets/audio/theme.mp3");
+  audio.theme.loop = true;
+  audio.theme.volume = 0.35;
+
+  audio.elimination = new Audio("/assets/audio/elimination.mp3");
+  audio.elimination.volume = 0.65;
+
+  audio.theme.play().catch(() => {
+    // Browser blokkeert audio tot na gebruikersactie. Dat is normaal.
+  });
+
+  audio.started = true;
+}
+
+function playEliminationMusic() {
+  if (!audio.elimination) return;
+
+  audio.elimination.currentTime = 0;
+  audio.elimination.play().catch(() => {});
+}
 
 let ui = {
   selectedGender: "man",
@@ -177,7 +207,10 @@ function renderIntro() {
   app.innerHTML = `
     <div class="intro-screen">
       <div class="intro-card">
-        <div class="logo-mark big">DE MOL</div>
+        <div class="logo-wrap">
+          <img src="/assets/logo/logo.png" alt="De Mol logo" onerror="this.style.display='none'" />
+          <div class="logo-mark big">DE MOL</div>
+        </div>
         <h1>Hongarije</h1>
 
         <p>Al jaren proberen kandidaten één vraag te beantwoorden.</p>
@@ -194,6 +227,7 @@ function renderIntro() {
   `;
 
   document.querySelector('[data-action="new"]').addEventListener("click", () => {
+    initAudio();
     deleteSaveGame();
     state = createEmptyGameState();
     state.phase = "create-player";
@@ -203,6 +237,7 @@ function renderIntro() {
   const continueEl = document.querySelector('[data-action="continue"]');
   if (continueEl) {
     continueEl.addEventListener("click", () => {
+      initAudio();
       state = loadGame() || createEmptyGameState();
       render();
     });
@@ -297,64 +332,68 @@ function renderMap() {
 
   shell(`
     <div class="map-wrap">
-      <div class="pixel-map ${city.mapTheme}">
-        <div class="map-tile water"></div>
-        <div class="map-road horizontal"></div>
-        <div class="map-road vertical"></div>
-
-        <button class="map-building assignment" data-action="assignment">
-          Opdracht
-        </button>
-
-        <button class="map-building cafe" data-action="cafe" ${assignmentDone ? "" : "disabled"}>
-          Café
-        </button>
-
-        <button class="map-building hotel" data-action="test" ${assignmentDone ? "" : "disabled"}>
-          Test
-        </button>
-
-        <div class="sprite-player">☺</div>
-        <div class="sprite-gilles">G</div>
-      </div>
+      <div id="canvas-map" class="canvas-map-shell"></div>
 
       <div class="text-box">
         <strong>${city.name}</strong>
-        <p>Gebruik de kaart om naar de opdracht, het café of de test te gaan. In deze versie klik je op gebouwen; echte vrije beweging volgt in de canvasversie.</p>
+        <p>Beweeg met pijltjes of WASD. Druk op E of Enter om met kandidaten, gebouwen of Gilles te interageren.</p>
         ${
           assignmentDone
-            ? `<p>De opdracht is gespeeld. In het café kan je nu kandidaten ondervragen.</p>`
+            ? `<p>De opdracht is gespeeld. Je kan nu kandidaten ondervragen in het café of op de kaart.</p>`
             : `<p>Je kan pas met kandidaten praten na de opdracht.</p>`
         }
       </div>
     </div>
-  `);
+  `, { wide: true });
 
-  document.querySelector('[data-action="assignment"]').addEventListener("click", () => {
-    if (state.assignmentCompletedToday) {
-      alert("De opdracht van vandaag is al gespeeld.");
-      return;
+  const container = document.querySelector("#canvas-map");
+
+  createMapSession({
+    container,
+    candidates: state.candidates,
+    assignmentDone,
+    onInteract(action) {
+      if (action.locked) {
+        alert("Dit is pas beschikbaar na de opdracht.");
+        return;
+      }
+
+      if (action.type === "building" && action.id === "assignment") {
+        if (state.assignmentCompletedToday) {
+          alert("De opdracht van vandaag is al gespeeld.");
+          return;
+        }
+
+        state.phase = "assignment-briefing";
+        render();
+        return;
+      }
+
+      if (action.type === "building" && action.id === "cafe") {
+        state.phase = "cafe";
+        render();
+        return;
+      }
+
+      if (action.type === "building" && action.id === "test") {
+        ui.testQuestions = createEliminationTest({
+          candidates: state.candidates,
+          assignmentRun: state.currentAssignmentRun
+        });
+        ui.testAnswers = {};
+        ui.testStartTime = Date.now();
+        state.phase = "test";
+        render();
+        return;
+      }
+
+      if (action.type === "candidate") {
+        ui.currentDialogueCandidateId = action.id;
+        ui.lastDialogueText = "";
+        state.phase = "dialogue";
+        render();
+      }
     }
-    state.phase = "assignment-briefing";
-    render();
-  });
-
-  document.querySelector('[data-action="cafe"]').addEventListener("click", () => {
-    if (!state.assignmentCompletedToday) return;
-    state.phase = "cafe";
-    render();
-  });
-
-  document.querySelector('[data-action="test"]').addEventListener("click", () => {
-    if (!state.assignmentCompletedToday) return;
-    ui.testQuestions = createEliminationTest({
-      candidates: state.candidates,
-      assignmentRun: state.currentAssignmentRun
-    });
-    ui.testAnswers = {};
-    ui.testStartTime = Date.now();
-    state.phase = "test";
-    render();
   });
 }
 
@@ -493,7 +532,7 @@ function renderAssignmentCode() {
 
       <label class="form-label">
         Code
-        <input id="final-code" maxlength="4" placeholder="Bijv. 6834" inputmode="numeric" />
+        <input id="final-code" maxlength="4" placeholder="Bijv. XXXX" inputmode="numeric" />
       </label>
 
       <button data-action="submit-code" class="primary full">Code bevestigen</button>
@@ -770,6 +809,9 @@ function renderTest() {
 }
 
 function renderElimination() {
+  if (ui.revealIndex === 0) {
+  playEliminationMusic();
+  }
   const item = ui.currentEliminationSequence[ui.revealIndex];
 
   if (!item) {
