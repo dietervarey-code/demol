@@ -1,1 +1,32 @@
+:root {
+  --mol-black: #050505;
+  --mol-red: #b30018;
+  --mol-gold: #c9a227;
+  --mol-cream: #f2e7c9;
+  --mol-panel: rgba(9, 9, 9, 0.92);
+}
 
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #1a1a1a, #000);
+  color: var(--mol-cream);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+#app {
+  min-height: 100vh;
+}
