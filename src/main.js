@@ -14,7 +14,9 @@ import {
   getAssignmentById,
   createAssignmentRun,
   applyPlayerChoice,
-  completeAssignment
+  completeAssignment,
+  getTemplateFinaleOptions,
+  isTemplateAssignment
 } from "./game/assignmentEngine.js";
 
 import {
@@ -80,6 +82,10 @@ let ui = {
   playerName: "",
   selectedTeamRoleId: null,
   currentPhaseIndex: 0,
+  currentSceneIndex: 0,
+  finalSelection: [],
+  finalChoice: "",
+  lastAssignmentObservation: null,
   testQuestions: [],
   testAnswers: {},
   testStartTime: null,
@@ -424,7 +430,7 @@ function renderTeamChoice() {
     <p>Je kiest waar je zelf meedoet. De overige kandidaten worden verdeeld over de andere rollen.</p>
 
     <div class="choice-grid">
-      ${assignment.teamRoles
+      ${(assignment.teamModes || assignment.teamRoles)
         .map(
           (role) => `
             <button data-team="${role.id}" class="${ui.selectedTeamRoleId === role.id ? "selected" : ""}">
@@ -447,13 +453,18 @@ function renderTeamChoice() {
   });
 
   document.querySelector('[data-action="start-assignment"]').addEventListener("click", () => {
-    const selected = ui.selectedTeamRoleId || assignment.teamRoles[0].id;
-    state.currentAssignmentRun = createAssignmentRun(
+    const roleSource = assignment.teamModes || assignment.teamRoles;
+    const selected = ui.selectedTeamRoleId || roleSource[0].id;
+      state.currentAssignmentRun = createAssignmentRun(
       assignment,
       state.candidates,
       selected
     );
     ui.currentPhaseIndex = 0;
+    ui.currentSceneIndex = 0;
+    ui.finalSelection = [];
+    ui.finalChoice = "";
+    ui.lastAssignmentObservation = null;
     state.phase = "assignment-phase";
     persist();
     render();
@@ -462,6 +473,11 @@ function renderTeamChoice() {
 
 function renderAssignmentPhase() {
   const assignment = currentAssignment();
+
+  if (isTemplateAssignment(assignment)) {
+    return renderTemplateAssignmentScene();
+  }
+
   const phase = assignment.phases[ui.currentPhaseIndex];
 
   if (!phase) {
@@ -520,9 +536,180 @@ function renderAssignmentPhase() {
     });
   });
 }
+function renderTemplateAssignmentScene() {
+  const assignment = currentAssignment();
+  const run = state.currentAssignmentRun;
+  const scene = assignment.scenes[ui.currentSceneIndex];
 
+  if (!scene || run.timeRemaining <= 0) {
+    state.phase = "assignment-code";
+    render();
+    return;
+  }
+
+  shell(`
+    <div class="story-card assignment-v2">
+      <p class="location-label">Scène ${ui.currentSceneIndex + 1} van ${assignment.scenes.length}</p>
+      <h1>${assignment.title}</h1>
+
+      <div class="assignment-status">
+        <span>Tijd over: ${run.timeRemaining} min</span>
+        <span>Jouw team: €${run.moneyFromPlayerTeam}</span>
+        <span>Andere teams: €${run.moneyFromOtherTeams}</span>
+        <span>Verdacht: ${run.playerSuspicion}/100</span>
+      </div>
+
+      <h2>${scene.title}</h2>
+      <p>${scene.text}</p>
+
+      ${
+        ui.lastAssignmentObservation
+          ? `<div class="assignment-observation">
+              <strong>Vorige keuze:</strong>
+              <p>${ui.lastAssignmentObservation.text}</p>
+              <p>
+                Tijd: -${ui.lastAssignmentObservation.timeCost} min ·
+                Geldimpact: €${ui.lastAssignmentObservation.moneyImpact} ·
+                Verdacht: +${ui.lastAssignmentObservation.suspicionImpact}
+              </p>
+            </div>`
+          : ""
+      }
+
+      <h3>Wat doe jij?</h3>
+      <div class="choice-grid">
+        ${scene.choices
+          .map(
+            (choice) => `
+              <button data-choice="${choice.id}">
+                <strong>${choice.label}</strong>
+                <span>
+                  ${choice.moneyImpact > 0 ? `Kan geld opleveren` : choice.moneyImpact < 0 ? `Kan geld kosten` : `Onzekere impact`}
+                  · ${choice.suspicionImpact > 1 ? `kan verdacht lijken` : `lijkt niet extreem verdacht`}
+                </span>
+              </button>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
+  `);
+
+  document.querySelectorAll("[data-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const choice = scene.choices.find((item) => item.id === button.dataset.choice);
+      const observation = applyPlayerChoice(state.currentAssignmentRun, scene, choice);
+
+      ui.lastAssignmentObservation = observation;
+
+      if (observation.evidenceFound?.length) {
+        addNotebookFact(
+          state,
+          "assignment",
+          `Bewijs gevonden: ${observation.evidenceFound.join(", ")}`
+        );
+      }
+
+      ui.currentSceneIndex += 1;
+      persist();
+      renderTemplateAssignmentScene();
+    });
+  });
+}
+
+function renderTemplateFinale() {
+  const assignment = currentAssignment();
+  const run = state.currentAssignmentRun;
+  const finale = assignment.finale;
+  const options = getTemplateFinaleOptions(assignment);
+  const isMulti =
+    finale.type === "multi_select" ||
+    finale.type === "delivery_choice";
+
+  shell(`
+    <div class="story-card assignment-finale">
+      <p class="location-label">Eindbeslissing</p>
+      <h1>${assignment.title}</h1>
+
+      <div class="assignment-status">
+        <span>Tijd over: ${run.timeRemaining} min</span>
+        <span>Jouw team: €${run.moneyFromPlayerTeam}</span>
+        <span>Andere teams: €${run.moneyFromOtherTeams}</span>
+        <span>Verdacht: ${run.playerSuspicion}/100</span>
+      </div>
+
+      <p>${finale.prompt}</p>
+      ${finale.scoring ? `<p class="muted">${finale.scoring}</p>` : ""}
+
+      <div class="choice-grid">
+        ${options
+          .map((option) => {
+            const selected = isMulti
+              ? ui.finalSelection.includes(option.id)
+              : ui.finalChoice === option.id;
+
+            return `
+              <button data-final="${option.id}" class="${selected ? "selected" : ""}">
+                ${option.label}
+              </button>
+            `;
+          })
+          .join("")}
+      </div>
+
+      <button data-action="confirm-finale" class="primary full">
+        Definitieve keuze bevestigen
+      </button>
+    </div>
+  `);
+
+  document.querySelectorAll("[data-final]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const id = button.dataset.final;
+
+      if (isMulti) {
+        const maxSelections = finale.maxSelections || 3;
+
+        if (ui.finalSelection.includes(id)) {
+          ui.finalSelection = ui.finalSelection.filter((item) => item !== id);
+        } else if (ui.finalSelection.length < maxSelections) {
+          ui.finalSelection.push(id);
+        } else {
+          alert(`Je mag maximaal ${maxSelections} opties kiezen.`);
+        }
+      } else {
+        ui.finalChoice = id;
+      }
+
+      renderTemplateFinale();
+    });
+  });
+
+  document.querySelector('[data-action="confirm-finale"]').addEventListener("click", () => {
+    const finalInput = isMulti ? ui.finalSelection : ui.finalChoice;
+
+    if (!finalInput || (Array.isArray(finalInput) && finalInput.length === 0)) {
+      alert("Maak eerst een definitieve keuze.");
+      return;
+    }
+
+    const result = completeAssignment(assignment, state.currentAssignmentRun, finalInput);
+
+    state.groupPot += result.totalReward;
+    state.assignmentCompletedToday = true;
+    state.cafeUnlocked = true;
+    state.phase = "assignment-result";
+
+    persist();
+    render();
+  });
+}
 function renderAssignmentCode() {
   const assignment = currentAssignment();
+
+  if (isTemplateAssignment(assignment)) {
+    return renderTemplateFinale();
+  }
 
   shell(`
     <div class="story-card">
@@ -532,7 +719,7 @@ function renderAssignmentCode() {
 
       <label class="form-label">
         Code
-        <input id="final-code" maxlength="4" placeholder="Bijv. XXXX" inputmode="numeric" />
+        <input id="final-code" maxlength="4" placeholder="____" inputmode="numeric" autocomplete="off" />
       </label>
 
       <button data-action="submit-code" class="primary full">Code bevestigen</button>
@@ -965,6 +1152,10 @@ function renderReunion() {
       playerName: "",
       selectedTeamRoleId: null,
       currentPhaseIndex: 0,
+      currentSceneIndex: 0,
+      finalSelection: [],
+      finalChoice: "",
+      lastAssignmentObservation: null,
       testQuestions: [],
       testAnswers: {},
       testStartTime: null,
