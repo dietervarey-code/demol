@@ -895,3 +895,31 @@ textarea:focus {
 .reunion-day {
   border-left-color: var(--mol-green);
 }
+.assignment-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.assignment-status span {
+  border: 1px solid var(--mol-cyan);
+  background: rgba(2, 18, 14, 0.92);
+  color: var(--mol-white);
+  padding: 0.45rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.assignment-observation {
+  border-left: 4px solid var(--mol-green);
+  background: rgba(0, 255, 102, 0.08);
+  padding: 0.9rem 1rem;
+  border-radius: 0 12px 12px 0;
+  margin: 1rem 0;
+}
+
+.assignment-observation p:last-child {
+  color: var(--mol-muted);
+  margin-bottom: 0;
+}
