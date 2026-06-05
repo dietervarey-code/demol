@@ -12,47 +12,43 @@ function pickRandom(array) {
   return array[Math.floor(Math.random() * array.length)];
 }
 
-function groupValues(values, groupSize = 3) {
-  const shuffled = shuffle(unique(values));
-  const groups = [];
+function getAgeGroup(age) {
+  if (age < 30) return "jonger dan 30";
+  if (age < 36) return "30 tot en met 35";
+  if (age < 42) return "36 tot en met 41";
+  return "42 of ouder";
+}
 
-  for (let index = 0; index < shuffled.length; index += groupSize) {
-    groups.push(shuffled.slice(index, index + groupSize));
+function ensureAtLeastThreeAnswers(answers, fallbackAnswers) {
+  const merged = [...answers];
+
+  for (const fallback of fallbackAnswers) {
+    if (merged.length >= 3) break;
+
+    const alreadyExists = merged.some((answer) => answer.label === fallback.label);
+    if (!alreadyExists) {
+      merged.push(fallback);
+    }
   }
 
-  return groups;
+  return merged.slice(0, Math.max(3, merged.length));
 }
 
-function formatGroupAnswer(values) {
-  return values.join(", ");
-}
+function createGroupedAnswers({
+  id,
+  correctValue,
+  allValues,
+  groupSize = 3,
+  fallbackValues = []
+}) {
+  const values = unique([...allValues, ...fallbackValues]).filter(Boolean);
+  const shuffledValues = shuffle(values);
 
-export function createEliminationTest({ candidates, assignmentRun }) {
-  const activeCandidates = getActiveCandidates(candidates);
-  const mole = getMole(candidates);
+  let groups = [];
 
-  const questions = [];
-
-  questions.push(createGenderQuestion(activeCandidates, mole));
-  questions.push(createAgeQuestion(activeCandidates, mole));
-  questions.push(createJobQuestion(activeCandidates, mole));
-  questions.push(createHobbyQuestion(activeCandidates, mole));
-  questions.push(createNotebookColorQuestion(activeCandidates, mole));
-
-  if (assignmentRun) {
-    questions.push(createTeamQuestion(activeCandidates, mole, assignmentRun));
-    questions.push(createCodeReportQuestion(activeCandidates, mole, assignmentRun));
-    questions.push(createRoleQuestion(activeCandidates, mole, assignmentRun));
+  for (let index = 0; index < shuffledValues.length; index += groupSize) {
+    groups.push(shuffledValues.slice(index, index + groupSize));
   }
-
-  questions.push(createSuspicionStyleQuestion(activeCandidates, mole));
-  questions.push(createFinalMoleQuestion(activeCandidates, mole));
-
-  return questions.slice(0, 10);
-}
-
-function createGroupedQuestion({ id, text, correctValue, allValues }) {
-  const groups = groupValues(allValues, 3);
 
   let correctGroup = groups.find((group) => group.includes(correctValue));
 
@@ -61,22 +57,60 @@ function createGroupedQuestion({ id, text, correctValue, allValues }) {
     groups.push(correctGroup);
   }
 
+  // Vermijd 1 antwoordoptie. Dat zou kandidaten uitsluiten.
+  if (groups.length < 3) {
+    const fallbackGroups = [
+      ["rood", "groen", "zwart"],
+      ["blauw", "geel", "wit"],
+      ["paars", "oranje", "bruin"],
+      ["jonger dan 30", "30 tot en met 35"],
+      ["36 tot en met 41", "42 of ouder"]
+    ];
+
+    for (const fallbackGroup of fallbackGroups) {
+      if (groups.length >= 3) break;
+
+      const overlaps = fallbackGroup.some((value) =>
+        groups.flat().includes(value)
+      );
+
+      if (!overlaps) {
+        groups.push(fallbackGroup);
+      }
+    }
+  }
+
   const answers = groups.map((group, index) => ({
     id: `${id}_${index}`,
-    label: formatGroupAnswer(group),
+    label: group.join(" / "),
     values: group,
     correct: group.includes(correctValue)
   }));
 
+  return shuffle(answers);
+}
+
+function createGroupedQuestion({
+  id,
+  text,
+  correctValue,
+  allValues,
+  fallbackValues = []
+}) {
   return {
     id,
     text,
     type: "grouped",
-    answers: shuffle(answers)
+    answers: createGroupedAnswers({
+      id,
+      correctValue,
+      allValues,
+      fallbackValues
+    })
   };
 }
 
-function createGenderQuestion(activeCandidates, mole) {
+function createGenderQuestion(mole) {
   return {
     id: "mole_gender",
     text: "Is De Mol een man of een vrouw?",
@@ -91,6 +125,11 @@ function createGenderQuestion(activeCandidates, mole) {
         id: "vrouw",
         label: "Vrouw",
         correct: mole.gender === "vrouw"
+      },
+      {
+        id: "onbekend",
+        label: "Dat weet ik niet zeker",
+        correct: false
       }
     ]
   };
@@ -101,15 +140,14 @@ function createAgeQuestion(activeCandidates, mole) {
     id: "mole_age",
     text: "In welke leeftijdsgroep zit De Mol?",
     correctValue: getAgeGroup(mole.age),
-    allValues: unique(activeCandidates.map((candidate) => getAgeGroup(candidate.age)))
+    allValues: activeCandidates.map((candidate) => getAgeGroup(candidate.age)),
+    fallbackValues: [
+      "jonger dan 30",
+      "30 tot en met 35",
+      "36 tot en met 41",
+      "42 of ouder"
+    ]
   });
-}
-
-function getAgeGroup(age) {
-  if (age < 30) return "jonger dan 30";
-  if (age < 36) return "30 tot en met 35";
-  if (age < 42) return "36 tot en met 41";
-  return "42 of ouder";
 }
 
 function createJobQuestion(activeCandidates, mole) {
@@ -117,7 +155,18 @@ function createJobQuestion(activeCandidates, mole) {
     id: "mole_job",
     text: "In welke beroepsgroep zit De Mol?",
     correctValue: mole.job,
-    allValues: activeCandidates.map((candidate) => candidate.job)
+    allValues: activeCandidates.map((candidate) => candidate.job),
+    fallbackValues: [
+      "architect",
+      "leerkracht",
+      "verpleegkundige",
+      "marketeer",
+      "ingenieur",
+      "boekhouder",
+      "projectleider",
+      "fotograaf",
+      "kok"
+    ]
   });
 }
 
@@ -126,7 +175,18 @@ function createHobbyQuestion(activeCandidates, mole) {
     id: "mole_hobby",
     text: "Welke hobby hoort bij De Mol?",
     correctValue: mole.hobby,
-    allValues: activeCandidates.map((candidate) => candidate.hobby)
+    allValues: activeCandidates.map((candidate) => candidate.hobby),
+    fallbackValues: [
+      "klimmen",
+      "lopen",
+      "schaken",
+      "fotografie",
+      "kajakken",
+      "koken",
+      "theater",
+      "piano",
+      "wielrennen"
+    ]
   });
 }
 
@@ -135,11 +195,22 @@ function createNotebookColorQuestion(activeCandidates, mole) {
     id: "mole_notebook",
     text: "Welke kleur heeft het Molboekje van De Mol?",
     correctValue: mole.notebookColor,
-    allValues: activeCandidates.map((candidate) => candidate.notebookColor)
+    allValues: activeCandidates.map((candidate) => candidate.notebookColor),
+    fallbackValues: [
+      "rood",
+      "groen",
+      "zwart",
+      "blauw",
+      "geel",
+      "wit",
+      "paars",
+      "oranje",
+      "bruin"
+    ]
   });
 }
 
-function createTeamQuestion(activeCandidates, mole, assignmentRun) {
+function createTeamQuestion(mole, assignmentRun) {
   const moleTeam = assignmentRun.teams.find((team) =>
     team.members.some((member) => member.id === mole.id)
   );
@@ -148,41 +219,19 @@ function createTeamQuestion(activeCandidates, mole, assignmentRun) {
     id: "mole_team",
     text: "In welk team zat De Mol tijdens de opdracht?",
     correctValue: moleTeam?.name || "onbekend",
-    allValues: assignmentRun.teams.map((team) => team.name)
+    allValues: assignmentRun.teams.map((team) => team.name),
+    fallbackValues: [
+      "Team Controle",
+      "Team Koffer",
+      "Team Markt",
+      "Team Route",
+      "Team Archief",
+      "Team Kluis"
+    ]
   });
 }
 
-function createCodeReportQuestion(activeCandidates, mole, assignmentRun) {
-  const moleReports = assignmentRun.phaseReports
-    .flatMap((phase) => phase.witnesses)
-    .filter((report) => report.candidateId === mole.id);
-
-  const reportedPositions = moleReports.map(
-    (report) => `positie ${report.phaseNumber + 1}: ${report.reportedDigit}`
-  );
-
-  const correctValue =
-    reportedPositions.length > 0
-      ? pickRandom(reportedPositions)
-      : "De Mol gaf geen duidelijk codefragment door";
-
-  const allValues = assignmentRun.phaseReports
-    .flatMap((phase) =>
-      phase.witnesses.map(
-        (report) => `positie ${report.phaseNumber + 1}: ${report.reportedDigit}`
-      )
-    )
-    .concat(["De Mol gaf geen duidelijk codefragment door"]);
-
-  return createGroupedQuestion({
-    id: "mole_code_report",
-    text: "Welk codefragment werd door De Mol genoemd of bevestigd?",
-    correctValue,
-    allValues
-  });
-}
-
-function createRoleQuestion(activeCandidates, mole, assignmentRun) {
+function createRoleQuestion(mole, assignmentRun) {
   const moleTeam = assignmentRun.teams.find((team) =>
     team.members.some((member) => member.id === mole.id)
   );
@@ -191,16 +240,74 @@ function createRoleQuestion(activeCandidates, mole, assignmentRun) {
     id: "mole_role",
     text: "Welke rol had het team van De Mol tijdens de opdracht?",
     correctValue: moleTeam?.role || "onbekend",
-    allValues: assignmentRun.teams.map((team) => team.role)
+    allValues: assignmentRun.teams.map((team) => team.role),
+    fallbackValues: [
+      "zocht naar fysieke aanwijzingen",
+      "controleerde de volgorde",
+      "bewaakte de tijd",
+      "las documenten",
+      "ondervroeg figuranten",
+      "vergeleek symbolen"
+    ]
   });
 }
 
-function createSuspicionStyleQuestion(activeCandidates, mole) {
+function createCodeReportQuestion(mole, assignmentRun) {
+  const moleReports = assignmentRun.phaseReports
+    .flatMap((phase) => phase.witnesses)
+    .filter((report) => report.candidateId === mole.id);
+
+  const allReports = assignmentRun.phaseReports.flatMap((phase) =>
+    phase.witnesses.map(
+      (report) => `positie ${report.phaseNumber + 1}: ${report.reportedDigit}`
+    )
+  );
+
+  const correctValue =
+    moleReports.length > 0
+      ? pickRandom(
+          moleReports.map(
+            (report) => `positie ${report.phaseNumber + 1}: ${report.reportedDigit}`
+          )
+        )
+      : "De Mol gaf geen duidelijk codefragment door";
+
+  return createGroupedQuestion({
+    id: "mole_code_report",
+    text: "Welk codefragment werd door De Mol genoemd of bevestigd?",
+    correctValue,
+    allValues: [
+      ...allReports,
+      "De Mol gaf geen duidelijk codefragment door"
+    ],
+    fallbackValues: [
+      "positie 1: 1",
+      "positie 1: 2",
+      "positie 2: 3",
+      "positie 2: 4",
+      "positie 3: 5",
+      "positie 3: 6",
+      "positie 4: 7",
+      "positie 4: 8"
+    ]
+  });
+}
+
+function createCandidateBehaviourQuestion(activeCandidates, mole) {
   return createGroupedQuestion({
     id: "mole_profile_hint",
     text: "Welk gedragstype past het best bij De Mol?",
     correctValue: mole.hiddenProfile.type,
-    allValues: activeCandidates.map((candidate) => candidate.hiddenProfile.type)
+    allValues: activeCandidates.map((candidate) => candidate.hiddenProfile.type),
+    fallbackValues: [
+      "eerlijk",
+      "observator",
+      "verward",
+      "strategisch",
+      "bedrieglijk",
+      "stresskip",
+      "mol"
+    ]
   });
 }
 
@@ -209,14 +316,42 @@ function createFinalMoleQuestion(activeCandidates, mole) {
     id: "final_mole",
     text: "Wie is De Mol?",
     type: "final",
-    answers: activeCandidates
-      .filter((candidate) => !candidate.isPlayer)
-      .map((candidate) => ({
-        id: candidate.id,
-        label: candidate.name,
-        correct: candidate.id === mole.id
-      }))
+    answers: shuffle(
+      activeCandidates
+        .filter((candidate) => !candidate.isPlayer)
+        .map((candidate) => ({
+          id: candidate.id,
+          label: candidate.name,
+          correct: candidate.id === mole.id
+        }))
+    )
   };
+}
+
+export function createEliminationTest({ candidates, assignmentRun }) {
+  const activeCandidates = getActiveCandidates(candidates);
+  const mole = getMole(candidates);
+
+  const questionPool = [
+    createGenderQuestion(mole),
+    createAgeQuestion(activeCandidates, mole),
+    createJobQuestion(activeCandidates, mole),
+    createHobbyQuestion(activeCandidates, mole),
+    createNotebookColorQuestion(activeCandidates, mole),
+    createCandidateBehaviourQuestion(activeCandidates, mole)
+  ];
+
+  if (assignmentRun) {
+    questionPool.push(createTeamQuestion(mole, assignmentRun));
+    questionPool.push(createRoleQuestion(mole, assignmentRun));
+    questionPool.push(createCodeReportQuestion(mole, assignmentRun));
+  }
+
+  const nonFinalQuestions = shuffle(questionPool)
+    .filter((question) => question.answers && question.answers.length >= 3)
+    .slice(0, 9);
+
+  return [...nonFinalQuestions, createFinalMoleQuestion(activeCandidates, mole)];
 }
 
 export function scoreEliminationTest(questions, selectedAnswerIds) {
@@ -234,33 +369,36 @@ export function scoreEliminationTest(questions, selectedAnswerIds) {
   return score;
 }
 
-export function simulateNpcTestScores({ candidates, questions, playerScore }) {
+export function simulateNpcTestScores({ candidates, questions }) {
   const activeNpcs = getActiveCandidates(candidates).filter(
     (candidate) => !candidate.isPlayer
   );
 
   return activeNpcs.map((candidate) => {
-    const baseKnowledge = candidate.isMole
-      ? 1
-      : candidate.hiddenProfile.memory * 0.45 +
-        candidate.hiddenProfile.confidence * 0.25 +
-        Math.random() * 0.3;
+    if (candidate.isMole) {
+      return {
+        candidateId: candidate.id,
+        candidateName: candidate.name,
+        score: questions.length,
+        timeSeconds: 45 + Math.floor(Math.random() * 60)
+      };
+    }
 
-    const score = candidate.isMole
-      ? questions.length
-      : Math.max(
-          0,
-          Math.min(
-            questions.length,
-            Math.round(baseKnowledge * questions.length)
-          )
-        );
+    const knowledge =
+      candidate.hiddenProfile.memory * 0.35 +
+      candidate.hiddenProfile.confidence * 0.2 +
+      Math.random() * 0.45;
+
+    const score = Math.max(
+      0,
+      Math.min(questions.length, Math.round(knowledge * questions.length))
+    );
 
     return {
       candidateId: candidate.id,
       candidateName: candidate.name,
       score,
-      timeSeconds: 60 + Math.floor(Math.random() * 240)
+      timeSeconds: 70 + Math.floor(Math.random() * 260)
     };
   });
 }
@@ -275,8 +413,7 @@ export function determineEliminatedCandidate({
 
   const npcScores = simulateNpcTestScores({
     candidates,
-    questions,
-    playerScore
+    questions
   });
 
   const player = activeCandidates.find((candidate) => candidate.isPlayer);
@@ -302,6 +439,7 @@ export function determineEliminatedCandidate({
   });
 
   const eliminated = nonMoleResults[0];
+
   const eliminatedCandidate = candidates.find(
     (candidate) => candidate.id === eliminated.candidateId
   );
@@ -316,15 +454,15 @@ export function determineEliminatedCandidate({
 }
 
 export function createNameTypingFrames(name) {
-  const letters = [];
+  const frames = [];
   let current = "";
 
   for (const character of name.toUpperCase()) {
     current += character;
-    letters.push(current);
+    frames.push(current);
   }
 
-  return letters;
+  return frames;
 }
 
 export function createEliminationRevealSequence({
@@ -332,45 +470,53 @@ export function createEliminationRevealSequence({
   eliminatedCandidate
 }) {
   const activeCandidates = getActiveCandidates(candidates);
-  const candidatesToReveal = shuffle(
-    activeCandidates.filter((candidate) => !candidate.isMole)
-  );
 
-  if (!candidatesToReveal.some((candidate) => candidate.id === eliminatedCandidate.id)) {
-    candidatesToReveal.push(eliminatedCandidate);
+  const revealable = activeCandidates.filter((candidate) => {
+    // De Mol mag zeker ook groen krijgen.
+    // De afvaller moet ook in de pool zitten.
+    return true;
+  });
+
+  const shuffled = shuffle(revealable);
+
+  let ordered = [];
+
+  for (const candidate of shuffled) {
+    ordered.push(candidate);
+
+    if (candidate.id === eliminatedCandidate.id) {
+      break;
+    }
   }
 
-  const ordered = candidatesToReveal.map((candidate) => ({
+  // Als de afvaller toevallig niet in het stuk zat, voegen we hem alsnog in.
+  if (!ordered.some((candidate) => candidate.id === eliminatedCandidate.id)) {
+    const insertIndex = Math.floor(Math.random() * (ordered.length + 1));
+    ordered.splice(insertIndex, 0, eliminatedCandidate);
+    ordered = ordered.slice(0, insertIndex + 1);
+  }
+
+  return ordered.map((candidate) => ({
     candidateId: candidate.id,
     name: candidate.name,
     typingFrames: createNameTypingFrames(candidate.name),
     color: candidate.id === eliminatedCandidate.id ? "red" : "green",
     label: candidate.id === eliminatedCandidate.id ? "ROOD" : "GROEN"
   }));
-
-  const redIndex = ordered.findIndex(
-    (item) => item.candidateId === eliminatedCandidate.id
-  );
-
-  if (redIndex > 2) {
-    return ordered.slice(0, redIndex + 1);
-  }
-
-  return ordered;
 }
 
 export function getRevealScreenStyle(color) {
   if (color === "red") {
     return {
-      background: "#7a0011",
-      border: "#ff4055",
+      background: "#640014",
+      border: "#ff335c",
       label: "ROOD SCHERM"
     };
   }
 
   return {
-    background: "#0b6b35",
-    border: "#43d17a",
+    background: "#003d22",
+    border: "#00ff66",
     label: "GROEN SCHERM"
   };
 }
