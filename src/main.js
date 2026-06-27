@@ -568,6 +568,7 @@ function renderTemplateAssignmentScene() {
 // ── Gedeelde keuze-handler ─────────────────────────────────────────────────
 function handleSceneChoice(choice, scene) {
   const observation = applyPlayerChoice(state.currentAssignmentRun, scene, choice);
+  observation.candidateReaction = choice.candidateReaction || null;
   ui.lastAssignmentObservation = observation;
   if (observation.evidenceFound?.length) {
     addNotebookFact(state, "assignment", `Bewijs: ${observation.evidenceFound.join(", ")}`);
@@ -929,7 +930,13 @@ function renderAssignmentCode() {
   `);
 
   document.querySelector('[data-action="submit-code"]').addEventListener("click", () => {
-    const code = document.querySelector("#final-code").value;
+    const code = document.querySelector("#final-code").value.trim();
+
+    if (!/^\d{4}$/.test(code)) {
+      alert("Vul een geldige 4-cijferige code in.");
+      return;
+    }
+
     const result = completeAssignment(assignment, state.currentAssignmentRun, code);
     state.groupPot += result.totalReward;
     state.assignmentCompletedToday = true;
@@ -1327,14 +1334,22 @@ function renderReunion() {
         state.reunionLog.length
           ? state.reunionLog
               .map(
-                (log) => `
+                (log) => {
+                  const res = log.assignmentResult;
+                  const decisionText = res?.enteredCode
+                    ? `koos de groep voor code ${res.enteredCode} (juist: ${res.correctCode})`
+                    : res?.finaleLabel
+                    ? `koos de groep voor: ${res.finaleLabel}`
+                    : "werd de opdracht gespeeld";
+                  return `
                   <article class="reunion-day">
                     <h3>Dag ${log.day} — ${log.city}</h3>
-                    <p>In ${log.assignment} koos de groep voor code ${log.assignmentResult?.enteredCode || "onbekend"}.</p>
-                    <p>De juiste code was ${log.assignmentResult?.correctCode || "onbekend"}. De opdracht bracht €${log.assignmentResult?.totalReward || 0} op.</p>
+                    <p>In ${log.assignment} ${decisionText}.</p>
+                    <p>De opdracht bracht €${res?.totalReward || 0} op voor de pot.</p>
                     <p>${log.eliminated} moest die avond het spel verlaten.</p>
                   </article>
-                `
+                `;
+                }
               )
               .join("")
           : `<p>Er zijn nog geen gespeelde opdrachten om te bespreken.</p>`
