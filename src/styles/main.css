@@ -676,9 +676,9 @@ input::placeholder, textarea::placeholder {
 }
 
 .game-canvas {
-  width: min(100%, 896px);
+  width: min(100%, 1088px);
   max-width: 100%;
-  aspect-ratio: 896 / 576;
+  aspect-ratio: 1088 / 704;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   border: 3px solid rgba(34, 255, 230, 0.15);
