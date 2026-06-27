@@ -2,29 +2,34 @@ const TILE_SIZE = 32;
 const MAP_COLS = 30;
 const MAP_ROWS = 20;
 
+// GBC Pokémon-stijl kleurpalette
 const COLORS = {
-  grass: "#5fbd55",
-  grassDark: "#459b43",
-  grassLight: "#7ed66d",
-  path: "#bfc7bd",
-  pathDark: "#8e9a91",
-  pathLight: "#d8dfd6",
-  water: "#2d95c9",
-  waterDark: "#1c6f9b",
-  soil: "#c99b68",
-  outline: "#102018",
-  black: "#020706",
-  panel: "rgba(2, 7, 6, 0.88)",
-  cyan: "#22ffe6",
-  green: "#00ff66",
-  white: "#f4fff9",
-  roofRed: "#c74b45",
-  roofGreen: "#3f9145",
-  roofPurple: "#8262c7",
-  wall: "#e5dcc7",
-  wallShadow: "#b9ad96",
-  door: "#8a552e",
-  window: "#68d6ff"
+  grass:       "#78c840",
+  grassDark:   "#508030",
+  grassLight:  "#a0e060",
+  path:        "#d8c878",
+  pathDark:    "#b09848",
+  pathLight:   "#f0e8a8",
+  water:       "#3870e8",
+  waterDark:   "#2050b8",
+  waterLight:  "#78a8f8",
+  outline:     "#000000",
+  black:       "#000000",
+  panel:       "#f8f8e8",
+  panelBorder: "#000000",
+  cyan:        "#48d8f8",
+  green:       "#40c048",
+  white:       "#f8f8f8",
+  roofRed:     "#c83020",
+  roofGreen:   "#308030",
+  roofPurple:  "#7040c0",
+  wall:        "#f0e8c0",
+  wallShadow:  "#c8b870",
+  door:        "#803010",
+  window:      "#88c8f8",
+  skin:        "#f8b870",
+  hairDark:    "#382010",
+  hairBlonde:  "#e8b820",
 };
 
 const buildingZones = [
@@ -141,17 +146,19 @@ function drawGrassTile(ctx, tx, ty) {
   ctx.fillStyle = COLORS.grass;
   ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
-  const variant = (tx * 17 + ty * 31) % 7;
-
+  // GBC-stijl grasstippen: kleine donkere stippen in raster
+  const variant = (tx * 17 + ty * 31) % 5;
+  ctx.fillStyle = COLORS.grassDark;
   if (variant === 0) {
-    ctx.fillStyle = COLORS.grassLight;
-    ctx.fillRect(x + 5, y + 7, 5, 4);
-    ctx.fillRect(x + 18, y + 20, 4, 5);
-  }
-
-  if (variant === 1) {
-    ctx.fillStyle = COLORS.grassDark;
-    ctx.fillRect(x + 12, y + 9, 7, 4);
+    ctx.fillRect(x + 4,  y + 6,  2, 2);
+    ctx.fillRect(x + 20, y + 18, 2, 2);
+    ctx.fillRect(x + 12, y + 26, 2, 2);
+  } else if (variant === 1) {
+    ctx.fillRect(x + 8,  y + 4,  2, 4);
+    ctx.fillRect(x + 22, y + 14, 2, 4);
+  } else if (variant === 2) {
+    ctx.fillRect(x + 14, y + 10, 2, 4);
+    ctx.fillRect(x + 6,  y + 22, 2, 4);
   }
 }
 
@@ -162,15 +169,19 @@ function drawPathTile(ctx, tx, ty) {
   ctx.fillStyle = COLORS.path;
   ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
-  ctx.fillStyle = COLORS.pathLight;
-  ctx.fillRect(x + 3, y + 4, 10, 8);
-  ctx.fillRect(x + 18, y + 17, 9, 7);
-
+  // GBC-stijl: kleine kiezelsteen-blokjes
   ctx.fillStyle = COLORS.pathDark;
-  ctx.fillRect(x + 1, y + 27, 14, 3);
-  ctx.fillRect(x + 20, y + 2, 10, 3);
-
-  drawTileOutline(ctx, x, y, "rgba(60,70,65,.18)");
+  const seed = (tx * 13 + ty * 7) % 4;
+  if (seed === 0) {
+    ctx.fillRect(x + 4,  y + 6,  6, 4);
+    ctx.fillRect(x + 18, y + 20, 8, 4);
+  } else if (seed === 1) {
+    ctx.fillRect(x + 10, y + 4,  8, 4);
+    ctx.fillRect(x + 2,  y + 22, 6, 4);
+  }
+  ctx.fillStyle = COLORS.pathLight;
+  ctx.fillRect(x + 6, y + 14, 4, 2);
+  ctx.fillRect(x + 20, y + 8, 4, 2);
 }
 
 function drawWaterTile(ctx, tx, ty) {
@@ -180,9 +191,13 @@ function drawWaterTile(ctx, tx, ty) {
   ctx.fillStyle = COLORS.water;
   ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
-  ctx.fillStyle = ty % 2 === 0 ? COLORS.waterDark : "#47b9e7";
-  ctx.fillRect(x + 3, y + 8, 22, 4);
-  ctx.fillRect(x + 8, y + 22, 18, 3);
+  // GBC-stijl golvende strepen
+  ctx.fillStyle = COLORS.waterLight;
+  ctx.fillRect(x + 2,  y + 6,  12, 3);
+  ctx.fillRect(x + 18, y + 18, 10, 3);
+  ctx.fillStyle = COLORS.waterDark;
+  ctx.fillRect(x + 6,  y + 14, 16, 2);
+  ctx.fillRect(x + 2,  y + 24, 10, 2);
 }
 
 function isPathTile(x, y) {
@@ -300,19 +315,29 @@ function drawTree(ctx, tx, ty) {
   const x = tx * TILE_SIZE;
   const y = ty * TILE_SIZE;
 
-  ctx.fillStyle = "#6a4425";
-  ctx.fillRect(x + 13, y + 18, 8, 16);
+  // stam
+  ctx.fillStyle = "#804000";
+  ctx.fillRect(x + 13, y + 20, 6, 12);
+  ctx.fillStyle = COLORS.outline;
+  ctx.strokeStyle = COLORS.outline;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 13, y + 20, 6, 12);
 
-  ctx.fillStyle = "#1f7f3c";
-  ctx.fillRect(x + 5, y + 9, 24, 18);
+  // bladeren — GBC: blok-stijl met duidelijke outline
+  ctx.fillStyle = "#005800";
+  ctx.fillRect(x + 4,  y + 8,  24, 16);
+  ctx.fillStyle = "#008800";
+  ctx.fillRect(x + 8,  y + 2,  16, 14);
+  ctx.fillRect(x + 2,  y + 14, 10, 12);
+  ctx.fillRect(x + 20, y + 14, 10, 12);
+  ctx.fillStyle = "#00b800";
+  ctx.fillRect(x + 10, y + 4,  6, 6);
+  ctx.fillRect(x + 6,  y + 12, 6, 6);
+  ctx.fillRect(x + 20, y + 12, 6, 6);
 
-  ctx.fillStyle = "#2ea64d";
-  ctx.fillRect(x + 9, y + 2, 17, 14);
-  ctx.fillRect(x + 1, y + 15, 15, 12);
-  ctx.fillRect(x + 18, y + 15, 15, 12);
-
-  ctx.fillStyle = "#7ed66d";
-  ctx.fillRect(x + 12, y + 5, 5, 4);
+  ctx.strokeStyle = COLORS.outline;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 4, y + 2, 24, 22);
 }
 
 function drawBench(ctx, tx, ty) {
@@ -389,99 +414,121 @@ function drawCharacter(ctx, px, py, candidate, options = {}) {
   const name = candidate?.name || "?";
   const palette = paletteForCandidate(candidate, index);
 
-  const shirt = isGilles ? "#191919" : isPlayer ? COLORS.cyan : palette.shirt;
-  const hair = isGilles ? "#bfc7bd" : palette.hair;
-  const skin = "#f0b37e";
+  const shirt = isGilles ? "#202020" : isPlayer ? "#3870e8" : palette.shirt;
+  const hair  = isGilles ? COLORS.hairBlonde : palette.hair;
+  const skin  = COLORS.skin;
+  const pants = isGilles ? "#383838" : "#283848";
 
   ctx.save();
   ctx.translate(px, py);
 
-  // shadow
-  ctx.fillStyle = "rgba(0,0,0,.30)";
-  ctx.fillRect(6, 28, 21, 5);
+  // ── schaduw ──────────────────────────────────────────────────
+  ctx.fillStyle = "rgba(0,0,0,.20)";
+  ctx.fillRect(8, 30, 18, 4);
 
-  // legs
-  ctx.fillStyle = "#1a1a1a";
-  ctx.fillRect(9, 24, 5, 8);
-  ctx.fillRect(19, 24, 5, 8);
+  // ── benen / schoenen ─────────────────────────────────────────
+  ctx.fillStyle = pants;
+  ctx.fillRect(10, 22, 5, 8);
+  ctx.fillRect(18, 22, 5, 8);
+  ctx.fillStyle = "#080808";
+  ctx.fillRect(10, 28, 5, 4);
+  ctx.fillRect(18, 28, 5, 4);
 
-  // body
+  // ── lichaam ───────────────────────────────────────────────────
   ctx.fillStyle = shirt;
-  ctx.fillRect(8, 13, 18, 14);
+  ctx.fillRect(9, 12, 16, 12);
+  ctx.fillStyle = COLORS.outline;
   ctx.strokeStyle = COLORS.outline;
-  ctx.strokeRect(8, 13, 18, 14);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(9, 12, 16, 12);
 
-  // arms
+  // ── armen ─────────────────────────────────────────────────────
+  ctx.fillStyle = shirt;
+  ctx.fillRect(5, 13, 5, 8);
+  ctx.fillRect(24, 13, 5, 8);
   ctx.fillStyle = skin;
-  ctx.fillRect(4, 15, 5, 10);
-  ctx.fillRect(25, 15, 5, 10);
+  ctx.fillRect(5, 19, 5, 4);
+  ctx.fillRect(24, 19, 5, 4);
 
-  // head
+  // ── hoofd ─────────────────────────────────────────────────────
   ctx.fillStyle = skin;
-  ctx.fillRect(8, 4, 18, 13);
-  ctx.strokeStyle = COLORS.outline;
-  ctx.strokeRect(8, 4, 18, 13);
+  ctx.fillRect(9, 3, 16, 12);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(9, 3, 16, 12);
 
-  // hair
+  // ── haar ──────────────────────────────────────────────────────
   ctx.fillStyle = hair;
-  ctx.fillRect(7, 2, 20, 6);
+  ctx.fillRect(8, 2, 18, 5);          // bovenkant haar
+  ctx.fillRect(8, 6, 3, 6);           // zijkant links
 
   if (gender === "vrouw" && !isGilles) {
-    ctx.fillRect(6, 7, 5, 12);
-    ctx.fillRect(23, 7, 5, 12);
+    ctx.fillRect(23, 6, 3, 10);       // lang haar rechts
+    ctx.fillRect(8, 6, 3, 10);
+  } else {
+    ctx.fillRect(23, 6, 3, 5);
   }
 
-  if (isGilles) {
-    ctx.fillStyle = "#808a86";
-    ctx.fillRect(7, 2, 20, 5);
-    ctx.fillRect(6, 6, 4, 6);
-    ctx.fillRect(24, 6, 4, 6);
-  }
+  // ── ogen ──────────────────────────────────────────────────────
+  ctx.fillStyle = COLORS.outline;
+  ctx.fillRect(13, 9, 2, 2);
+  ctx.fillRect(19, 9, 2, 2);
 
-  // eyes
-  ctx.fillStyle = COLORS.black;
-  ctx.fillRect(12, 10, 2, 2);
-  ctx.fillRect(20, 10, 2, 2);
-
+  // ── speler-highlight ──────────────────────────────────────────
   if (isPlayer) {
-    ctx.strokeStyle = COLORS.green;
+    ctx.strokeStyle = "#f8f820";
     ctx.lineWidth = 2;
-    ctx.strokeRect(4, 0, 26, 33);
+    ctx.strokeRect(4, 0, 26, 35);
   }
 
   ctx.restore();
 
-  const label = isPlayer ? "JIJ" : isGilles ? "GILLES" : name;
+  // ── naamlabel (GBC-stijl: wit vlak, zwarte rand) ─────────────
+  const label = isPlayer ? "JIJ" : isGilles ? "GILLES" : name.split(" ")[0].toUpperCase();
+  const lw = Math.max(32, label.length * 7 + 8);
+  const lx = px + 16 - lw / 2;
+  const ly = py - 14;
 
-  ctx.fillStyle = COLORS.panel;
-  ctx.fillRect(px - 6, py - 16, Math.max(44, label.length * 8), 14);
-  ctx.strokeStyle = isPlayer ? COLORS.green : COLORS.cyan;
-  ctx.strokeRect(px - 6, py - 16, Math.max(44, label.length * 8), 14);
+  ctx.fillStyle = COLORS.white;
+  ctx.fillRect(lx, ly, lw, 13);
+  ctx.strokeStyle = COLORS.outline;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(lx, ly, lw, 13);
+  drawText(ctx, label, lx + lw / 2, ly + 7, 8, COLORS.outline);
+}
 
-  drawText(ctx, label, px - 2 + Math.max(44, label.length * 8) / 2, py - 9, 9, COLORS.white);
+// GBC Pokémon-stijl dialoogvenster (wit vlak, dikke zwarte rand, binnenste rand)
+function drawGbcPanel(ctx, bx, by, bw, bh) {
+  ctx.fillStyle = COLORS.white;
+  ctx.fillRect(bx, by, bw, bh);
+  // buitenste rand
+  ctx.fillStyle = COLORS.outline;
+  ctx.fillRect(bx, by, bw, 3);
+  ctx.fillRect(bx, by + bh - 3, bw, 3);
+  ctx.fillRect(bx, by, 3, bh);
+  ctx.fillRect(bx + bw - 3, by, 3, bh);
+  // binnenste rand (GBC-stijl dubbele lijn)
+  ctx.fillStyle = "#a8a8a8";
+  ctx.fillRect(bx + 5, by + 5, bw - 10, 1);
+  ctx.fillRect(bx + 5, by + bh - 6, bw - 10, 1);
+  ctx.fillRect(bx + 5, by + 5, 1, bh - 10);
+  ctx.fillRect(bx + bw - 6, by + 5, 1, bh - 10);
 }
 
 function drawSpeechBubble(ctx, text, x, y) {
-  const width = Math.min(520, Math.max(220, text.length * 8));
-  const height = 34;
-  const bx = clamp(x - width / 2, 10, MAP_COLS * TILE_SIZE - width - 10);
-  const by = clamp(y - 58, 10, MAP_ROWS * TILE_SIZE - 80);
+  const width = Math.min(500, Math.max(200, text.length * 7 + 20));
+  const height = 36;
+  const bx = clamp(x - width / 2, 8, MAP_COLS * TILE_SIZE - width - 8);
+  const by = clamp(y - 56, 8, MAP_ROWS * TILE_SIZE - 80);
 
-  ctx.fillStyle = "rgba(244,255,249,.96)";
-  ctx.fillRect(bx, by, width, height);
-  ctx.strokeStyle = COLORS.outline;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(bx, by, width, height);
+  drawGbcPanel(ctx, bx, by, width, height);
 
+  // pijltje naar beneden (pixel-stijl)
+  ctx.fillStyle = COLORS.white;
+  ctx.fillRect(x - 4, by + height, 8, 6);
   ctx.fillStyle = COLORS.outline;
-  ctx.beginPath();
-  ctx.moveTo(x - 8, by + height);
-  ctx.lineTo(x + 8, by + height);
-  ctx.lineTo(x, by + height + 8);
-  ctx.closePath();
-  ctx.fill();
+  ctx.fillRect(x - 4, by + height, 8, 3);
 
-  drawText(ctx, text, bx + width / 2, by + 17, 12, COLORS.outline);
+  drawText(ctx, text, bx + width / 2, by + 18, 11, COLORS.outline);
 }
 
 function createInitialPlayerPosition() {
@@ -661,21 +708,18 @@ export function createMapSession({ container, candidates, assignmentDone, onInte
       drawSpeechBubble(ctx, message, targetX, targetY);
     }
 
-    // bottom panel
-    ctx.fillStyle = COLORS.panel;
-    ctx.fillRect(8, canvas.height - 56, canvas.width - 16, 48);
-
-    ctx.strokeStyle = COLORS.cyan;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(8, canvas.height - 56, canvas.width - 16, 48);
+    // GBC-stijl tekstvenster onderaan
+    const panelH = 52;
+    const panelY = canvas.height - panelH - 6;
+    drawGbcPanel(ctx, 8, panelY, canvas.width - 16, panelH);
 
     const instruction = action
       ? action.locked
-        ? `${action.label} is nog gesloten. Speel eerst de opdracht.`
-        : `Druk E of Enter om te interageren met ${action.label}.`
-      : "Beweeg met pijltjes of WASD. Ga naast een kandidaat of gebouw staan en druk E/Enter.";
+        ? `${action.label}: beschikbaar na de opdracht`
+        : `[E] Praat met ${action.label}`
+      : "Pijltjes/WASD: bewegen     E/Enter: interageer";
 
-    drawText(ctx, instruction, 22, canvas.height - 32, 13, COLORS.white, "left");
+    drawText(ctx, instruction, 22, panelY + panelH / 2, 12, COLORS.outline, "left");
   }
 
   canvas.addEventListener("keydown", handleKeyDown);
